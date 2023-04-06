@@ -1,0 +1,30 @@
+{
+  "name": "challenge-12",
+  "version": "1.0.0",
+  "description": "employee tracker",
+  "main": "server.js",
+  "scripts": {
+    "test": "node server.js",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aecarena/Challenge-12-SQL-Employee-Tracker.git"
+  },
+  "keywords": [
+    "office",
+    "employee",
+    "tracker"
+  ],
+  "author": "ashley curtin arena",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/aecarena/Challenge-12-SQL-Employee-Tracker/issues"
+  },
+  "homepage": "https://github.com/aecarena/Challenge-12-SQL-Employee-Tracker#readme",
+  "dependencies": {
+    "console.table": "^0.10.0",
+    "inquirer": "^8.2.4",
+    "mysql2": "^3.2.0"
+  }
+}
