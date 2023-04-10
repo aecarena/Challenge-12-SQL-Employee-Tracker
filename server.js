@@ -63,7 +63,7 @@ const viewDept = () => {
 }
 
 const viewRoles = () => {
-    db.query("SELECT Roles.title AS Roles, Roles.salary AS Salary, department.name AS Department FROM Roles JOIN department ON Roles.department_id = department.id;", (err, results) => {
+    db.query("SELECT * FROM Roles", (err, results) => {
         err ? console.error(err) : console.table(results);
         init();
     })
@@ -71,7 +71,7 @@ const viewRoles = () => {
 }
 
 const viewEmployee = () => {
-    db.query(`SELECT employee.first_name, employee.last_name, role.title, role.salary, department.department_name, manager.last_name as manager FROM employee left join role on employee.role_id = role.id left join department on role.department_id = department.id left join employee manager on employee.manager_id = manager.id`, (err, results) => {
+    db.query(`SELECT * FROM Employee`, (err, results) => {
         err ? console.error(err) : console.table(results);
         init();
     })
@@ -87,12 +87,12 @@ const addDept = () => {
         }
 
     ]).then(answers => {
-        db.query(`INSERT INTO department(department_name)
-        VALUES(?)`, answers.addDept, (err, results) => {
+        db.query(`INSERT INTO Department (name) 
+         VALUES(?)`, answers.addDept, (err, results) => {
             if (err) {
                 console.log(err)
             } else {
-                db.query(`SELECT * FROM department`, (err, results) => {
+                db.query(`SELECT * FROM Department`, (err, results) => {
                     err ? console.error(err) : console.table(results);
                     init();
                 })
@@ -102,9 +102,9 @@ const addDept = () => {
 };
 const addRoles = () => {
     
-    db.promise().query(`SELECT * FROM department`)
+    db.promise().query(`SELECT * FROM Department`)
     .then((rows) => {
-         let arrNames = rows[0].map(obj => ({name: obj.department_name, value:obj.id}));
+         let arrNames = rows[0].map(obj => ({name: obj.Department_name, value:obj.id}));
          inquirer
          .prompt([
              {
@@ -128,7 +128,7 @@ const addRoles = () => {
      
              
          ]).then(answers => {
-             db.promise().query("INSERT INTO role set ?", answers).then(data => {
+             db.promise().query("INSERT INTO Roles set ?", answers).then(data => {
                  console.log("added role");
                  init()
              })
@@ -140,49 +140,103 @@ const addRoles = () => {
 
 
 const addEmployee = () => {
-    inquirer
-    .prompt([
-        {
-            type: "input",
-            message: "What is the first name of the employee would you like to add?",
-            name:"firstName"
-        },
-        {
-            type: "input",
-            message: "What is the last name of the employee would you like to add?",
-            name:"lastName"
-        },
-        {
-            type: "input",
-            message: "What is this employees role?",
-            name:"role"
-        },
-        {
-            type: "input",
-            message: "Who is the manager of this employee?",
-            name: "manager"
-        }
 
-        
-    ]).then(answers => {
-        db.query(`INSERT INTO employee(first_name, last_name)
-        VALUES(?, ?)`, [answers.firstName, answers.lastName], (err, results) => {
+    let roleIds = [];
+    let roleNames = [];
+
+    let managerIds = [];
+    let managerNames = [];
+
+    function prepareRoleChoices(nextFunctionCall, nextNextFunctionCall) {
+        db.query(`SELECT id,title FROM Roles`, (err, results) => {
             if (err) {
                 console.log(err);
             } else {
-                db.query(`SELECT * FROM employee`, (err, results) => {
-                    err ? console.error(err) : console.table(results);
-                    
-                    init();
-                })
+                roleNames = results.map(res=>res.title)
+                roleIds = results.map(res=>res.id)
+                // console.log(roleNames);
+                // console.log(roleIds);
+                // process.exit(0);
+                nextFunctionCall(nextNextFunctionCall);
             }
+        });
+    }
+
+    function prepareManagerChoices(nextNextFunctionCall) {
+        db.query(`SELECT id, CONCAT(first_name, " ", last_name) as manager_name FROM Employee`, (err, results) => {
+            if (err) {
+                console.log(err);
+            } else {
+                managerNames = results.map(res=>res.manager_name)
+                managerIds = results.map(res=>res.id)
+                // console.log(managerNames);
+                // console.log(managerIds);
+                // process.exit(0);
+                nextNextFunctionCall();
+            }
+        });
+    }
+
+    prepareRoleChoices(prepareManagerChoices, askAndUpdateDatabase)
+
+    function askAndUpdateDatabase() {
+        inquirer
+        .prompt([
+            {
+                type: "input",
+                message: "What is the first name of the employee would you like to add?",
+                name:"firstName"
+            },
+            {
+                type: "input",
+                message: "What is the last name of the employee would you like to add?",
+                name:"lastName"
+            },
+            {
+                type: "list",
+                choices: roleNames,
+                message: "What is this employees role?",
+                name:"role"
+            },
+            {
+                type: "list",
+                choices: managerNames,
+                message: "Who is the manager of this employee?",
+                name: "manager"
+            }
+        
+        ]).then(answers => {
+            let selectedRoleName = answers.role;
+            let selectedRoleId = roleNames.indexOf(selectedRoleName);
+            // ["a","b","c"].indexOf("b") => 1
+
+            let selectedManagerName = answers.manager;
+            let selectedManagerId = managerNames.indexOf(selectedManagerName);
+            // ["a","b","c"].indexOf("c") => 2
+
+            // console.log({selectedRoleName,selectedManagerName});
+            // console.log({selectedRoleId,selectedManagerId});
+
+            db.query(`INSERT INTO Employee(first_name, last_name, role_id, manager_id)
+            VALUES(?, ?, ?, ?)`, [answers.firstName, answers.lastName, selectedRoleId, selectedManagerId], (err, results) => {
+                if (err) {
+                    console.log(err);
+                } else {
+                    db.query(`SELECT * FROM Employee`, (err, results) => {
+                        err ? console.error(err) : console.table(results);
+        
+                        init();
+                    })
+                }
+            })
         })
-    })
+    }
 }
 
 const updateEmployee = () => {
+
     db.query(
-        `SELECT * FROM role`,
+        `SELECT * FROM roles`,
         function (err, res) {
             if (err) throw err;
             const roles = res;
@@ -201,7 +255,7 @@ const updateEmployee = () => {
                     name: "roles"
                 }
             ]).then(answers => {
-                db.query(`UPDATE employee SET role_id = ? WHERE id = ?`, [answers.role_id, answers.roles], (err, results) => {
+                db.query(`UPDATE employee SET roles_id = ? WHERE id = ?`, [answers.role_id, answers.roles], (err, results) => {
                     if (err) {
                         console.log(err);
                     } else {
